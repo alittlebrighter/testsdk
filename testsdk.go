@@ -4,6 +4,9 @@ package testsdk
 import (
 	"errors"
 	"fmt"
+	"time"
+
+	"golang.org/x/mobile/exp/sensor"
 )
 
 // anything exported (capitalized), is accessible to the mobile platform (and other Go packages)
@@ -12,9 +15,7 @@ const Title = "GoMobile Awesomeness"
 
 // or a struct that will be available to the mobile platform
 type MathResult struct {
-	Sum        int32
-	Difference int32
-	Product    int32
+	Sum, Difference, Product int32
 	// this value is not directly accessible by the target platform
 	// just like it wouldn't be directly accessible to any other Go package
 	divisor int32
@@ -72,4 +73,39 @@ type Result interface {
 
 func PrintResult(res Result, one int32, two int32) string {
 	return "Result: \n" + res.Compute(one, two)
+}
+
+// we can also use some of the sensors (very experimental, and the sensor package even calls some functions
+// from a C library digging the stack even deeper)
+var gyroResults *GyroResults
+
+func EnableGyro() {
+	if gyroResults == nil {
+		gyroResults = new(GyroResults)
+		sensor.Notify(gyroResults)
+	}
+	sensor.Enable(sensor.Gyroscope, 1*time.Second)
+}
+
+func DisableGyro() {
+	sensor.Disable(sensor.Gyroscope)
+}
+
+type GyroResults struct {
+	x, y, z float64
+}
+
+func (gr *GyroResults) Send(event interface{}) {
+	gEvent := event.(sensor.Event)
+	gr.x = gEvent.Data[0]
+	gr.y = gEvent.Data[1]
+	gr.z = gEvent.Data[2]
+}
+
+func (gr *GyroResults) Compute(one int32, two int32) string {
+	return fmt.Sprintf("x: %f\ny: %f\nz: %f", gr.x, gr.y, gr.z)
+}
+
+func GetGyroResult() string {
+	return PrintResult(gyroResults, 0, 0)
 }
